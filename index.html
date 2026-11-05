@@ -46,6 +46,14 @@ svg { display: block; }
 .viewwrap { grid-area: view; position: relative; min-height: 0; }
 .view { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: none; padding-bottom: 1rem; }
 .view::-webkit-scrollbar { display: none; }
+.view:focus { outline: none; }
+/* パソコン（マウス）では、つかんで動かせるスクロールバーを出す。iPadでは出さない */
+@media (hover: hover) and (pointer: fine) {
+  .view { scrollbar-width: auto; scrollbar-color: var(--mute) transparent; padding-right: 1.2rem; }
+  .view::-webkit-scrollbar { display: block; width: 1.4rem; }
+  .view::-webkit-scrollbar-thumb { background: var(--mute); border-radius: 99rem; border: .3rem solid var(--paper); }
+  .view::-webkit-scrollbar-track { background: transparent; }
+}
 
 /* ---- 左：日めくり ---- */
 .cal { grid-area: cal; display: flex; flex-direction: column; gap: calc(var(--u) * 1.1); min-height: 0; overflow: hidden; padding-bottom: calc(var(--u) * .6); }
@@ -249,7 +257,7 @@ h2 { margin: .3rem 0 .4rem; font-size: 1.9rem; font-weight: 700; color: var(--su
     <div class="tools" id="tools"></div>
   </aside>
   <nav class="tabs" id="tabs"></nav>
-  <div class="viewwrap"><div class="view" id="view"></div><div class="hint" id="hint" hidden>▼ したにも あります</div><button class="hintup" id="hintup" hidden data-top>▲ もっと前の予定</button></div>
+  <div class="viewwrap"><div class="view" id="view" tabindex="0"></div><div class="hint" id="hint" hidden>▼ したにも あります</div><button class="hintup" id="hintup" hidden data-top>▲ もっと前の予定</button></div>
 </div>
 <div class="sheet" id="sheet" hidden><div class="card" id="card"></div></div>
 <div class="alert" id="alert" hidden></div>
@@ -702,6 +710,7 @@ async function load() {
   render(); checkAlerts();
 }
 load();
+try { $('view').focus({ preventScroll: true }); } catch (e) {}
 setInterval(load, 60e3);
 setInterval(() => render(), 5e3);
 setInterval(() => { checkAlerts(); checkNap(); updateNap(); updateAlertCount(); }, 1000);
