@@ -178,6 +178,7 @@ async function setTaskDone(id, done) {
 const sha = (s) => crypto.createHash('sha256').update(String(s)).digest();
 const keyOk = (k) => crypto.timingSafeEqual(sha(k || ''), sha(KEY));
 const HTML = fs.readFileSync(path.join(HERE, 'index.html'));
+const VERSION = crypto.createHash('sha256').update(HTML).digest('hex').slice(0, 12);   // ページの版。新しい版を出すと変わる（画面側はこれを見て読み込み直す）
 const readBody = (req) => new Promise((resolve, reject) => {
   let n = 0; const chunks = [];
   req.on('data', (c) => { n += c.length; if (n > 2048) { reject(new Error('too large')); req.destroy(); } else chunks.push(c); });
@@ -201,13 +202,13 @@ http.createServer(async (req, res) => {
     if (!keyOk(url.searchParams.get('key'))) return send(404, 'text/plain', 'Not found');
     if (url.pathname === '/') return send(200, 'text/html; charset=utf-8', HTML);
     try {
-      if (url.pathname === '/api/data') return json(200, await getData());
+      if (url.pathname === '/api/data') return json(200, { ...(await getData()), version: VERSION });
       // POST /api/task  {id, done}
       if (req.method !== 'POST') return json(405, { error: 'POSTで呼んでください' });
       let b; try { b = JSON.parse(await readBody(req)); } catch { return json(400, { error: '形式が正しくありません' }); }
       if (typeof b.id !== 'string' || !b.id || b.id.length > 200 || typeof b.done !== 'boolean') return json(400, { error: '形式が正しくありません' });
       await setTaskDone(b.id, b.done);
-      return json(200, await getData(true));
+      return json(200, { ...(await getData(true)), version: VERSION });
     } catch (e) { return json(e.status || 502, { error: e.message }); }
   }
   send(404, 'text/plain', 'Not found');

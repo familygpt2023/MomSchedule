@@ -95,15 +95,18 @@ svg { display: block; }
 /* ---- きょうの主役 ---- */
 .hero {
   display: flex; flex-direction: column; gap: .5rem; width: 100%; text-align: left;
-  background: var(--accent); color: var(--accent-ink); border-radius: 1.2rem; padding: 1.3rem 1.9rem 1.4rem; margin-bottom: 1.3rem;
+  background: var(--accent); color: var(--accent-ink); border-radius: 1.2rem; padding: calc(var(--u) * 1.3) calc(var(--u) * 1.9) calc(var(--u) * 1.4); margin-bottom: 1.3rem;
+  position: sticky; top: 0; z-index: 2; box-shadow: 0 1.3rem 0 0 var(--paper), 0 2.4rem 0 -.2rem var(--paper);   /* 一覧が動いても主役は上に残す */
 }
-.hero.quiet { background: transparent; color: var(--ink); border: .18rem dashed var(--mute); }
-.hero .lab { font-size: 1.8rem; font-weight: 700; opacity: .88; }
-.hero .ti { font-size: 3.6rem; font-weight: 800; line-height: 1.15; text-wrap: balance; }
+.hero .allday { font-size: calc(var(--u) * 1.9 * var(--hz)); font-weight: 700; opacity: .94; }
+.hero.quiet { background: var(--paper); color: var(--ink); border: .18rem dashed var(--mute); }
+.hero { --hz: min(var(--z), 1.2); }
+.hero .lab { font-size: calc(var(--u) * 1.8 * var(--hz)); font-weight: 700; opacity: .88; }
+.hero .ti { font-size: calc(var(--u) * 3.6 * var(--hz)); font-weight: 800; line-height: 1.15; text-wrap: balance; }
 .hero .foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: .4rem 1.5rem; margin-top: .3rem; }
-.hero .cnt { font-size: 3rem; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; margin-left: auto; }
-.hero .meta { font-size: 2rem; opacity: .94; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hero.quiet .ti { font-size: 2.8rem; }
+.hero .cnt { font-size: calc(var(--u) * 3 * var(--hz)); font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; margin-left: auto; }
+.hero .meta { font-size: calc(var(--u) * 2 * var(--hz)); opacity: .94; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hero.quiet .ti { font-size: calc(var(--u) * 2.8 * var(--hz)); }
 
 h2 { margin: .3rem 0 .4rem; font-size: 1.9rem; font-weight: 700; color: var(--sub); }
 .dayh { margin: 1.4rem 0 .3rem; font-size: 2.3rem; font-weight: 800; color: var(--accent); }
@@ -287,6 +290,7 @@ let data = null, lastOk = 0, failed = false;
 let view = q.get('view') || 'today';
 let lastTouch = Date.now();
 let lastHtml = {};
+let pageVer = '', pendingReload = false;
 
 function norm(e) {
   const allDay = !!e.allDay;
@@ -316,7 +320,7 @@ const svg = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>
 /* ---- 画面の部品 ---- */
 function rowHtml(e, n, cur, next) {
   const isPast = !e.allDay && e.e <= n, isCur = e === cur, isNext = e === next && !cur;
-  const cls = isCur ? 'cur' : isNext ? 'next' : isPast ? 'past' : '';
+  const cls = (isCur ? 'cur' : isNext ? 'next' : isPast ? 'past' : '') + (e.allDay ? ' allrow' : '');
   const tag = isCur ? 'いま' : isNext ? '次' : isPast ? 'おわり' : '';
   const t = e.allDay ? '<span class="hm all">終日</span>' : tmHtml(e.s);
   return `<button class="row ${cls}" data-eid="${esc(e.id)}" data-s="${e.s}"><div class="t">${t}</div><div class="w"><div class="ti">${esc(e.title)}</div>${e.location ? `<div class="lo">${esc(e.location)}</div>` : ''}</div><div class="st">${tag || '<span class="go">›</span>'}</div></button>`;
@@ -330,7 +334,8 @@ function viewToday(evs, n, today) {
   const allDay = todays.find((e) => e.allDay);
   let hero;
   const foot = (meta, cnt) => `<div class="foot"><div class="meta">${meta}</div><div class="cnt">${cnt}</div></div>`;
-  const heroBtn = (e, lab, f) => `<button class="hero" data-eid="${esc(e.id)}" data-s="${e.s}"><div class="lab">${lab}</div><div class="ti">${esc(e.title)}</div>${f}</button>`;
+  const adTxt = todays.filter((x) => x.allDay).map((x) => esc(x.title)).join('、');
+  const heroBtn = (e, lab, f) => `<button class="hero" data-eid="${esc(e.id)}" data-s="${e.s}"><div class="lab">${lab}</div><div class="ti">${esc(e.title)}</div>${f}${adTxt && !e.allDay ? `<div class="allday">きょうは：${adTxt}</div>` : ''}</button>`;
   if (cur) hero = heroBtn(cur, 'いま', foot(rangeText(cur), `${tm(cur.e).ap}${tm(cur.e).hm}まで`));
   else if (next) hero = heroBtn(next, '次の予定', foot(rangeText(next), until(next.s - n)));
   else if (allDay) hero = heroBtn(allDay, 'きょう', foot('終日', ''));
@@ -559,6 +564,7 @@ function render(force) {
     el.innerHTML = html; el.scrollTop = keep;
     lastHtml.view = key; lastHtml.viewName = view;
   }
+  if (view === 'today') autoScroll(); else lastAnchor = '';
   updateHint(); updateNap();
 
   const netEl = $('net');
@@ -566,6 +572,24 @@ function render(force) {
   if (!data) { netEl.hidden = false; netEl.textContent = failed ? 'よみこめません。しばらくお待ちください' : 'よみこみ中…'; }
   else if (failed || old || data.stale) { netEl.hidden = false; const u = Date.parse(data.updated); netEl.textContent = `ネットにつながっていません（${tm(u).ap}${tm(u).hm} の情報です）`; }
   else netEl.hidden = true;
+}
+
+/* ---- きょうの予定：終わったものは上に流して、いまの予定・次の予定を見えるところに出す ---- */
+let lastAnchor = '';
+function autoScroll() {
+  const el = $('view');
+  const a = el.querySelector('.row:not(.past):not(.allrow)');
+  const id = a ? a.dataset.eid + '|' + a.dataset.s : 'end';
+  if (id === lastAnchor) return;
+  if (lastAnchor !== '' && Date.now() - lastTouch < 15e3) return;   // 指で動かしている最中は待つ
+  const first = lastAnchor === '';
+  lastAnchor = id;
+  let top = 0;
+  if (a) {
+    const hero = el.querySelector('.hero'), gap = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.5;
+    top = a.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - (hero ? hero.offsetHeight + gap : 0);
+  } else top = el.scrollHeight;
+  el.scrollTo({ top: Math.max(0, top), behavior: first ? 'auto' : 'smooth' });
 }
 
 function updateHint() {
@@ -626,7 +650,7 @@ document.addEventListener('click', (ev) => {
   if (ev.target === $('sheet')) return closeSheet();
   if (!t) return;
   if (t.hasAttribute('data-ok')) return dismissAlert();
-  if (t.dataset.view) { view = t.dataset.view; $('view').scrollTop = 0; render(true); return; }
+  if (t.dataset.view) { view = t.dataset.view; $('view').scrollTop = 0; lastAnchor = ''; render(true); return; }
   if (t.hasAttribute('data-size')) { sizeIdx = (sizeIdx + 1) % SIZES.length; try { localStorage.setItem('sizeIdx', String(sizeIdx)); } catch (e) {} render(true); return; }
   if (t.hasAttribute('data-sound')) { unlockAudio(); setTimeout(() => chime(false), 150); return; }
   if (t.dataset.nap) return startNap(Number(t.dataset.nap));
@@ -645,7 +669,7 @@ document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.prev
 setInterval(() => {
   const idle = Date.now() - lastTouch;
   if (!$('sheet').hidden && idle > 60e3) closeSheet();
-  if (view !== 'today' && idle > (view === 'nap' && nap ? 300e3 : 120e3)) { view = 'today'; $('view').scrollTop = 0; render(true); }
+  if (view !== 'today' && idle > (view === 'nap' && nap ? 300e3 : 120e3)) { view = 'today'; $('view').scrollTop = 0; lastAnchor = ''; render(true); }
 }, 5e3);
 
 async function load() {
@@ -653,6 +677,7 @@ async function load() {
     const r = await fetch('/api/data?key=' + encodeURIComponent(KEY), { cache: 'no-store' });
     if (!r.ok) throw new Error(r.status);
     data = await r.json(); lastOk = Date.now(); failed = false;
+    if (data.version) { if (!pageVer) pageVer = data.version; else if (data.version !== pageVer) pendingReload = true; }
   } catch (e) { failed = true; }
   render(); checkAlerts();
 }
@@ -662,8 +687,9 @@ setInterval(() => render(), 5e3);
 setInterval(() => { checkAlerts(); checkNap(); updateNap(); updateAlertCount(); }, 1000);
 window.addEventListener('resize', updateHint);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
-// 毎日 午前3時30分に読み込み直す（更新したページを取り込むため）
-setInterval(() => { const p = parts(now()); if (p.h === 3 && p.mi === 30 && !curAlert && !nap) location.reload(); }, 60e3);
+// 新しい版のページが出たときだけ読み込み直す（毎日は読み込み直さないので、音の準備が保たれる）。
+// おしらせ中は待ち、しばらく触られていないときに行う。
+setInterval(() => { if (pendingReload && !curAlert && Date.now() - lastTouch > 20e3) location.reload(); }, 5e3);
 (async function keepAwake() {
   try { if ('wakeLock' in navigator) { await navigator.wakeLock.request('screen'); } } catch (e) {}
   document.addEventListener('visibilitychange', () => { if (!document.hidden) keepAwake(); }, { once: true });
