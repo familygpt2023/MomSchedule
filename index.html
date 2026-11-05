@@ -8,118 +8,162 @@
 <meta name="apple-mobile-web-app-title" content="予定表">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#EFF3F4">
+<meta name="theme-color" content="#F2F3EF">
 <title>予定表</title>
 <style>
+/* 配色：和紙の白・墨・藍・朱。日めくりカレンダー（土は青、日は朱）の色づかいに合わせる */
 :root {
-  --paper: #EFF3F4;   /* 地の色：青みのある薄い灰 */
-  --panel: #FFFFFF;
-  --ink: #13242B;     /* 文字：黒に近い藍 */
-  --sub: #4A5F67;
-  --mute: #8C9EA6;
-  --line: #D2DCE0;
-  --accent: #00677A;  /* 「いま」「次」「えらんでいる場所」だけに使う青緑 */
-  --accent-ink: #FFFFFF;
-  --accent-soft: #D5EAEF;
-  --z: 1;             /* 文字の大きさ（ボタンで変える。予定やToDoの中身だけに効く） */
-  --u: calc(1rem / var(--z));   /* 文字の大きさに左右されない 1rem（ボタンや日付用） */
+  --paper: #F2F3EF; --panel: #FFFFFF; --ink: #1B1D22; --sub: #4B525C; --mute: #8A929C; --line: #D5D9D6;
+  --accent: #1F3A66; --accent-ink: #FFFFFF; --accent-soft: #E3E9F4;
+  --red: #C23B22; --blue: #2A5BA8; --ok: #2F7A4B;
+  --z: 1;                          /* 文字の大きさ（予定とToDoの中身だけに効く） */
+  --u: calc(1rem / var(--z));      /* 文字の大きさに左右されない 1rem（ボタン・日付・おしらせ用） */
+  --ff: "Hiragino Maru Gothic ProN", "Hiragino Sans", "BIZ UDPGothic", "Yu Gothic", "Noto Sans JP", sans-serif;
+  --serif: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
 }
 [data-theme="night"] {
-  --paper: #0B1519; --panel: #122128; --ink: #E8F1F3; --sub: #A3B8BF; --mute: #5C7078;
-  --line: #213640; --accent: #58C2D4; --accent-ink: #052329; --accent-soft: #123640;
+  --paper: #0D1320; --panel: #161F31; --ink: #EEF2F8; --sub: #AAB6C8; --mute: #66748A; --line: #26334A;
+  --accent: #9DBBF5; --accent-ink: #0B1630; --accent-soft: #1C2A45; --red: #FF8F73; --blue: #8DB4FF; --ok: #6FD39A;
 }
 * { box-sizing: border-box; }
 html { font-size: calc(min(1.5vw, 2vh) * var(--z)); -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; height: 100dvh; overflow: hidden; background: var(--paper); color: var(--ink);
-  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
-  font-weight: 500; line-height: 1.25;
+  font-family: var(--ff); font-weight: 500; line-height: 1.25;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-align: inherit; cursor: pointer; }
+svg { display: block; }
 
-/* ---- 全体：横向きは左に大きなボタン、縦向きは下に大きなボタン ---- */
+/* ---- 全体：横向きは左に日付、右に大きなボタンと本文。縦向きは上に日付、下にボタン ---- */
 .app {
-  height: 100dvh; padding: 1.6rem 2rem 1.6rem 1.6rem;
-  display: grid; gap: 1rem 2rem;
-  grid-template-columns: min(calc(var(--u) * 14), 24vw) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas: "rail top" "rail view";
+  height: 100dvh; padding: calc(var(--u) * 1.6) calc(var(--u) * 2) calc(var(--u) * 1.6) calc(var(--u) * 1.6);
+  display: grid; gap: calc(var(--u) * 1.2) calc(var(--u) * 2.4);
+  grid-template-columns: min(calc(var(--u) * 19), 29vw) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "cal tabs" "cal view";
 }
-.rail { grid-area: rail; display: flex; flex-direction: column; gap: 1rem; min-height: 0; }
-.top { grid-area: top; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .2rem 2rem; min-width: 0; }
 .viewwrap { grid-area: view; position: relative; min-height: 0; }
 .view { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: none; padding-bottom: 1rem; }
 .view::-webkit-scrollbar { display: none; }
 
-.tab {
-  flex: 1; min-height: calc(var(--u) * 6.5); border-radius: 1.2rem; background: var(--panel); border: .2rem solid var(--line);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem;
-  font-size: calc(var(--u) * 2.5); font-weight: 800;
+/* ---- 左：日めくり ---- */
+.cal { grid-area: cal; display: flex; flex-direction: column; gap: calc(var(--u) * 1.1); min-height: 0; overflow: hidden; padding-bottom: calc(var(--u) * .6); }
+.daycard {
+  position: relative; background: var(--panel); border-radius: calc(var(--u) * .9); text-align: center;
+  padding: calc(var(--u) * 3.1) calc(var(--u) * .8) calc(var(--u) * 1.4);
+  box-shadow: 0 calc(var(--u) * .5) 0 calc(var(--u) * -.12) var(--line), 0 0 0 calc(var(--u) * .12) var(--line);
 }
+.daycard .bind { position: absolute; left: 0; right: 0; top: 0; height: calc(var(--u) * 2.1); background: var(--accent); border-radius: calc(var(--u) * .9) calc(var(--u) * .9) 0 0; }
+.daycard .bind::before, .daycard .bind::after { content: ""; position: absolute; top: 50%; width: calc(var(--u) * .9); height: calc(var(--u) * .9); margin-top: calc(var(--u) * -.45); border-radius: 50%; background: var(--paper); }
+.daycard .bind::before { left: 20%; } .daycard .bind::after { right: 20%; }
+.daycard .mo { font-size: calc(var(--u) * 2.6); font-weight: 800; color: var(--sub); }
+.daycard .dd { font-family: var(--serif); font-size: calc(var(--u) * 10.5); font-weight: 900; line-height: 1.02; font-variant-numeric: tabular-nums; }
+.daycard .dsuf { display: none; }
+.daycard .wk { font-size: calc(var(--u) * 3); font-weight: 800; }
+.daycard.sun .dd, .daycard.sun .wk { color: var(--red); }
+.daycard.sat .dd, .daycard.sat .wk { color: var(--blue); }
+.clock { font-variant-numeric: tabular-nums; white-space: nowrap; display: flex; align-items: baseline; justify-content: center; gap: calc(var(--u) * .6); }
+.clock .ap { font-size: calc(var(--u) * 1.9); font-weight: 700; color: var(--sub); }
+.clock .hm { font-size: calc(var(--u) * 4.8); font-weight: 800; }
+.greet { font-size: calc(var(--u) * 2); font-weight: 700; color: var(--sub); text-align: center; }
+.napchip { display: flex; align-items: center; justify-content: center; gap: calc(var(--u) * .7); min-height: calc(var(--u) * 5.2); border-radius: 99rem; background: var(--accent); color: var(--accent-ink); font-size: calc(var(--u) * 1.9); font-weight: 800; white-space: nowrap; padding: 0 calc(var(--u) * 1.2); }
+.napchip[hidden] { display: none; }
+.napchip svg { width: calc(var(--u) * 2.4); height: calc(var(--u) * 2.4); }
+.tools { margin-top: auto; display: flex; gap: calc(var(--u) * .7); }
+.tool { flex: 1; min-width: 0; min-height: calc(var(--u) * 5.6); border-radius: calc(var(--u) * 1); border: calc(var(--u) * .14) solid var(--line); background: var(--panel); text-align: center; display: flex; flex-direction: column; justify-content: center; line-height: 1.15; }
+.tool .k { font-size: calc(var(--u) * 1.4); color: var(--sub); font-weight: 700; }
+.tool .v { font-size: calc(var(--u) * 2); font-weight: 800; white-space: nowrap; }
+.tool.warn { border-color: var(--red); background: var(--red); color: #fff; }
+.tool.warn .k { color: #fff; }
+.tool:active { transform: scale(.97); }
+
+/* ---- 上：大きなボタン ---- */
+.tabs { grid-area: tabs; display: flex; gap: calc(var(--u) * .9); }
+.tab {
+  flex: 1; min-width: 0; position: relative; min-height: calc(var(--u) * 7.6); border-radius: calc(var(--u) * 1.2);
+  background: var(--panel); border: calc(var(--u) * .16) solid var(--line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(var(--u) * .35);
+  font-size: calc(var(--u) * 1.8); font-weight: 800; white-space: nowrap;
+}
+.tab svg { width: calc(var(--u) * 3); height: calc(var(--u) * 3); stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tab:active { transform: scale(.97); }
 .tab[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.badge { min-width: calc(var(--u) * 3); padding: .1rem calc(var(--u) * .8); border-radius: 99rem; background: var(--accent); color: var(--accent-ink); font-size: calc(var(--u) * 1.8); font-weight: 800; text-align: center; }
-.tab[aria-selected="true"] .badge { background: var(--accent-ink); color: var(--accent); }
-.size { flex: none; padding: calc(var(--u) * .9) calc(var(--u) * .4); border-radius: 1rem; border: .15rem dashed var(--mute); color: var(--sub); font-size: calc(var(--u) * 1.6); font-weight: 700; text-align: center; }
-
-.date { display: flex; align-items: baseline; gap: 1.2rem; }
-.md { font-size: calc(var(--u) * 4.4); font-weight: 800; white-space: nowrap; }
-.wd { font-size: calc(var(--u) * 2.6); font-weight: 700; color: var(--sub); white-space: nowrap; }
-.wd.sun, .wd.sat { color: var(--accent); }
-.clock { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.clock .ap { font-size: calc(var(--u) * 1.8); color: var(--sub); margin-right: .5rem; }
-.clock .hm { font-size: calc(var(--u) * 4.4); font-weight: 800; }
+.badge { position: absolute; top: calc(var(--u) * -.7); right: calc(var(--u) * -.4); min-width: calc(var(--u) * 3); padding: .1rem calc(var(--u) * .8); border-radius: 99rem; background: var(--red); color: #fff; font-size: calc(var(--u) * 1.8); font-weight: 800; text-align: center; line-height: 1.5; }
+[data-theme="night"] .badge { color: #2a0a03; }
 
 /* ---- きょうの主役 ---- */
 .hero {
-  display: flex; flex-direction: column; gap: .5rem; width: 100%;
-  background: var(--accent); color: var(--accent-ink); border-radius: 1.2rem; padding: 1.2rem 1.8rem 1.3rem; margin-bottom: 1.3rem;
+  display: flex; flex-direction: column; gap: .5rem; width: 100%; text-align: left;
+  background: var(--accent); color: var(--accent-ink); border-radius: 1.2rem; padding: 1.3rem 1.9rem 1.4rem; margin-bottom: 1.3rem;
 }
-.hero.quiet { background: var(--panel); color: var(--ink); border: .15rem solid var(--line); }
-.hero .lab { font-size: 1.7rem; font-weight: 700; opacity: .85; }
-.hero .ti { font-size: 3.3rem; font-weight: 800; line-height: 1.15; text-wrap: balance; }
+.hero.quiet { background: transparent; color: var(--ink); border: .18rem dashed var(--mute); }
+.hero .lab { font-size: 1.8rem; font-weight: 700; opacity: .88; }
+.hero .ti { font-size: 3.6rem; font-weight: 800; line-height: 1.15; text-wrap: balance; }
 .hero .foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: .4rem 1.5rem; margin-top: .3rem; }
-.hero .cnt { font-size: 2.8rem; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; margin-left: auto; }
-.hero .meta { font-size: 1.9rem; opacity: .92; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hero .cnt { font-size: 3rem; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; margin-left: auto; }
+.hero .meta { font-size: 2rem; opacity: .94; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hero.quiet .ti { font-size: 2.8rem; }
 
-h2 { margin: .3rem 0 .5rem; font-size: 1.8rem; font-weight: 700; color: var(--sub); }
-.dayh { margin: 1.4rem 0 .3rem; font-size: 2.2rem; font-weight: 800; color: var(--accent); }
+h2 { margin: .3rem 0 .4rem; font-size: 1.9rem; font-weight: 700; color: var(--sub); }
+.dayh { margin: 1.4rem 0 .3rem; font-size: 2.3rem; font-weight: 800; color: var(--accent); }
+[data-theme="night"] .dayh { color: var(--accent); }
 
 /* ---- 予定の1行（押すと大きく表示） ---- */
 .row {
-  width: 100%; min-height: 7rem; display: grid; grid-template-columns: 10rem minmax(0, 1fr) auto; align-items: center; gap: 1.2rem;
+  width: 100%; min-height: 7.4rem; display: grid; grid-template-columns: 10rem minmax(0, 1fr) auto; align-items: center; gap: 1.2rem;
   padding: .8rem 1.1rem; border-top: .1rem solid var(--line);
 }
 .row:active { background: var(--accent-soft); }
 .row .t { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .row .ap { font-size: 1.4rem; color: var(--sub); margin-right: .3rem; }
-.row .hm { font-size: 2.6rem; font-weight: 800; }
+.row .hm { font-size: 2.7rem; font-weight: 800; }
 .row .hm.all { font-size: 2.2rem; color: var(--sub); }
-.row .ti { font-size: 2.5rem; font-weight: 700; line-height: 1.2; text-wrap: balance; }
-.row .lo { font-size: 1.7rem; color: var(--sub); margin-top: .2rem; }
-.row .st { font-size: 1.6rem; font-weight: 700; color: var(--mute); white-space: nowrap; }
-.row .go { font-size: 2.4rem; color: var(--mute); }
+.row .ti { font-size: 2.6rem; font-weight: 700; line-height: 1.2; text-wrap: balance; }
+.row .lo { font-size: 1.8rem; color: var(--sub); margin-top: .2rem; }
+.row .st { font-size: 1.7rem; font-weight: 700; color: var(--mute); white-space: nowrap; }
+.row .go { font-size: 2.6rem; color: var(--mute); }
 .row.past .ti, .row.past .hm, .row.past .lo, .row.past .ap { color: var(--mute); font-weight: 600; }
-.row.cur, .row.next { border-top-color: transparent; background: var(--accent-soft); border-radius: .8rem; box-shadow: inset .5rem 0 0 var(--accent); }
+.row.cur, .row.next { border-top-color: transparent; background: var(--accent-soft); border-radius: .8rem; box-shadow: inset .55rem 0 0 var(--accent); }
 .row.cur .st, .row.next .st { color: var(--accent); }
 .empty { padding: 1.6rem 1.1rem; font-size: 2.4rem; color: var(--sub); border-top: .1rem solid var(--line); }
 
 /* ---- やること（押すとチェック） ---- */
 .todo {
-  width: 100%; min-height: 8rem; display: grid; grid-template-columns: 5rem minmax(0, 1fr); align-items: center; gap: 1.6rem;
-  padding: 1rem 1.2rem; margin-bottom: .9rem; background: var(--panel); border-radius: 1.2rem; border: .15rem solid var(--line);
+  width: 100%; min-height: 8.6rem; display: grid; grid-template-columns: 5.4rem minmax(0, 1fr); align-items: center; gap: 1.6rem;
+  padding: 1rem 1.2rem; border-top: .1rem solid var(--line);
 }
 .todo:active { background: var(--accent-soft); }
-.todo.fixed:active { background: var(--panel); }
-.todo .box { width: 4.6rem; height: 4.6rem; border-radius: 50%; border: .4rem solid var(--accent); position: relative; }
-.todo .ti { font-size: 2.9rem; font-weight: 800; line-height: 1.2; text-wrap: balance; }
-.todo .sub { font-size: 1.8rem; color: var(--sub); margin-top: .2rem; }
-.todo.done { background: transparent; border-style: dashed; }
-.todo.done .box { background: var(--accent); }
-.todo.done .box::after { content: ""; position: absolute; left: 1.2rem; top: .5rem; width: 1.2rem; height: 2.3rem; border: solid var(--accent-ink); border-width: 0 .5rem .5rem 0; transform: rotate(45deg); }
+.todo.fixed:active { background: transparent; }
+.todo .box { width: 4.8rem; height: 4.8rem; border-radius: 50%; border: .4rem solid var(--accent); position: relative; background: var(--panel); }
+.todo .ti { font-size: 3rem; font-weight: 800; line-height: 1.2; text-wrap: balance; }
+.todo .sub { font-size: 1.9rem; color: var(--sub); margin-top: .2rem; }
+.todo.done .box { background: var(--ok); border-color: var(--ok); }
+.todo.done .box::after { content: ""; position: absolute; left: 1.3rem; top: .4rem; width: 1.3rem; height: 2.5rem; border: solid #fff; border-width: 0 .5rem .5rem 0; transform: rotate(45deg); }
 .todo.done .ti { color: var(--mute); text-decoration: line-through; font-weight: 600; }
+
+/* ---- ひるねタイマー ---- */
+.napbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6rem; margin-top: 1.2rem; }
+.napbtn {
+  min-height: 19rem; border-radius: 1.6rem; background: var(--accent); color: var(--accent-ink);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem; text-align: center;
+}
+.napbtn:active { transform: scale(.98); }
+.napbtn .n { font-family: var(--serif); font-size: 9rem; font-weight: 900; line-height: 1; }
+.napbtn .n small { font-size: 4rem; margin-left: .3rem; font-family: var(--ff); }
+.napbtn .d { font-size: 2.2rem; font-weight: 700; opacity: .92; }
+.napnote { font-size: 2.2rem; color: var(--sub); margin-top: 1.4rem; line-height: 1.5; }
+.napgo { display: flex; flex-wrap: wrap; align-items: center; gap: 2rem 3rem; margin-top: .8rem; }
+.ring { position: relative; width: min(28rem, 100%); aspect-ratio: 1; flex: none; }
+.ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 7; }
+.ring .bg { stroke: var(--line); } .ring .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
+.ring .mid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring .mid .k { font-size: 2rem; color: var(--sub); font-weight: 700; }
+.ring .mid .v { font-size: 6.4rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.napside { flex: 1 1 22rem; min-width: 0; display: flex; flex-direction: column; gap: 1.4rem; }
+.napside .at { font-size: 2.6rem; font-weight: 700; line-height: 1.4; }
+.napstop { min-height: 8rem; border-radius: 1.4rem; border: .25rem solid var(--ink); font-size: 3rem; font-weight: 800; text-align: center; }
 
 /* ---- 大きく表示（予定を押したとき） ---- */
 .sheet { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); display: flex; align-items: center; justify-content: center; padding: 2rem; z-index: 5; }
@@ -127,6 +171,7 @@ h2 { margin: .3rem 0 .5rem; font-size: 1.8rem; font-weight: 700; color: var(--su
 .card { background: var(--panel); border-radius: 1.6rem; width: min(100%, 72rem); max-height: 100%; overflow-y: auto; padding: 2.4rem 2.6rem; display: flex; flex-direction: column; gap: 1.2rem; }
 .card .c-ti { font-size: 4.2rem; font-weight: 800; line-height: 1.2; text-wrap: balance; }
 .card .c-when { font-size: 2.8rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+[data-theme="night"] .card .c-when { color: var(--accent); }
 .card .c-lo { font-size: 2.6rem; font-weight: 700; }
 .card .c-no { font-size: 2.4rem; color: var(--sub); white-space: pre-wrap; line-height: 1.4; }
 .card .close { margin-top: .6rem; min-height: 7rem; border-radius: 1.2rem; background: var(--accent); color: var(--accent-ink); font-size: 3rem; font-weight: 800; text-align: center; }
@@ -135,31 +180,73 @@ h2 { margin: .3rem 0 .5rem; font-size: 1.8rem; font-weight: 700; color: var(--su
   background: var(--ink); color: var(--paper); padding: 1.2rem 1.4rem 1.2rem 2.4rem; border-radius: 1.6rem; font-size: 2.3rem; font-weight: 700; line-height: 1.3; }
 .toast[hidden] { display: none; }
 .toast button { flex: none; white-space: nowrap; background: var(--accent); color: var(--accent-ink); border-radius: 1.2rem; padding: 1.2rem 2.4rem; font-size: 2.6rem; font-weight: 800; }
-.hint { position: absolute; left: 50%; bottom: .4rem; transform: translateX(-50%); padding: .6rem 1.8rem; border-radius: 99rem; background: var(--ink); color: var(--paper); font-size: calc(var(--u) * 1.8); font-weight: 700; pointer-events: none; opacity: .9; white-space: nowrap; }
+.hint { position: absolute; left: 50%; bottom: .4rem; transform: translateX(-50%); padding: .6rem 1.8rem; border-radius: 99rem; background: var(--ink); color: var(--paper); font-size: calc(var(--u) * 1.8); font-weight: 700; pointer-events: none; opacity: .92; white-space: nowrap; }
 .hint[hidden] { display: none; }
-.net { position: fixed; left: 50%; top: 1rem; transform: translateX(-50%); background: #8A4B00; color: #fff; font-size: 1.8rem; font-weight: 700; padding: .7rem 1.6rem; border-radius: 99rem; z-index: 4; }
+.net { position: fixed; left: 50%; top: 1rem; transform: translateX(-50%); background: #8A4B00; color: #fff; font-size: calc(var(--u) * 1.8); font-weight: 700; padding: .7rem 1.6rem; border-radius: 99rem; z-index: 4; white-space: nowrap; }
 .net[hidden] { display: none; }
 
+/* ---- おしらせ（予定が近づいたとき・ひるねの終わり）：画面いっぱいに大きく ---- */
+.alert {
+  position: fixed; inset: 0; z-index: 9; background: var(--accent); color: var(--accent-ink);
+  display: flex; flex-direction: column; justify-content: center; gap: calc(var(--u) * 1.1); text-align: center; overflow-y: auto;
+  padding: calc(var(--u) * 1.8) calc(var(--u) * 3.4); animation: pulse 2.6s ease-in-out infinite;
+}
+.alert[hidden] { display: none; }
+.alert.now { background: var(--red); color: #fff; }
+[data-theme="night"] .alert.now { color: #2a0a03; }
+.alert .a-lab { font-size: calc(var(--u) * 3.2); font-weight: 800; }
+.alert .a-ti { font-size: calc(var(--u) * 6.2); font-weight: 900; line-height: 1.12; text-wrap: balance; }
+.alert .a-ti.long { font-size: calc(var(--u) * 4.8); }
+.alert .a-when { font-size: calc(var(--u) * 3.2); font-weight: 700; font-variant-numeric: tabular-nums; }
+.alert .a-cnt { font-size: calc(var(--u) * 4.8); font-weight: 900; font-variant-numeric: tabular-nums; }
+.alert .a-loc { font-size: calc(var(--u) * 2.8); font-weight: 700; }
+.alert .a-note { font-size: calc(var(--u) * 1.8); min-height: 1em; opacity: .9; }
+.alert .a-ok { margin-top: calc(var(--u) * 1.4); min-height: calc(var(--u) * 8.5); flex: none; border-radius: calc(var(--u) * 1.8); background: #fff; color: #1B1D22; font-size: calc(var(--u) * 4.2); font-weight: 900; text-align: center; }
+.alert .a-ok:active { transform: scale(.98); }
+@keyframes pulse { 50% { filter: brightness(1.14); } }
+@media (prefers-reduced-motion: reduce) { .alert { animation: none; } .ring .fg { transition: none; } }
+
+/* ---- 縦向き（iPadを縦に置いたとき） ---- */
 @media (max-aspect-ratio: 1/1) {
   html { font-size: calc(min(2.3vw, 1.5vh) * var(--z)); }
-  .app { padding: 1.4rem 1.8rem 1.4rem; gap: 1rem; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "top" "view" "rail"; }
-  .rail { flex-direction: row; }
-  .rail { gap: .8rem; }
-  .tab { min-width: 0; min-height: calc(var(--u) * 7); font-size: calc(var(--u) * 1.65); padding: 0; white-space: nowrap; }
-  .rail { gap: .5rem; }
-  .size { width: calc(var(--u) * 7); padding: .4rem .1rem; font-size: calc(var(--u) * 1.5); }
-  .size .l { display: none; }
-  .md { font-size: calc(var(--u) * 4); } .clock .hm { font-size: calc(var(--u) * 4); }
+  .app { padding: calc(var(--u) * 1.3) calc(var(--u) * 1.6); gap: calc(var(--u) * 1.1); grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "cal" "view" "tabs"; }
+  .cal { flex-direction: row; flex-wrap: wrap; align-items: center; gap: calc(var(--u) * .8) calc(var(--u) * 1.6); padding-bottom: 0; overflow: visible; }
+  .daycard { display: flex; align-items: baseline; gap: calc(var(--u) * .6); padding: 0; background: none; box-shadow: none; text-align: left; border-radius: 0; }
+  .daycard .bind { display: none; }
+  .daycard .mo { font-size: calc(var(--u) * 4); font-weight: 800; color: var(--ink); }
+  .daycard .dd { font-size: calc(var(--u) * 4.4); font-weight: 900; font-family: var(--ff); }
+  .daycard .dsuf { display: inline; font-size: calc(var(--u) * 4); font-weight: 800; margin-left: calc(var(--u) * -.3); }
+  .daycard .wk { font-size: calc(var(--u) * 2.6); color: var(--sub); }
+  .daycard.sun .mo, .daycard.sun .dsuf { color: var(--red); } .daycard.sat .mo, .daycard.sat .dsuf { color: var(--blue); }
+  .clock { margin-left: auto; } .clock .hm { font-size: calc(var(--u) * 4.4); }
+  .greet { display: none; }
+  .napchip { order: 5; flex: 1 1 100%; }
+  .tools { margin-top: 0; width: 100%; order: 6; }
+  .tool { min-height: calc(var(--u) * 4.4); flex-direction: row; align-items: center; justify-content: center; gap: calc(var(--u) * .8); }
+  .tool .k { font-size: calc(var(--u) * 1.5); } .tool .v { font-size: calc(var(--u) * 1.8); }
+  .tab { min-height: calc(var(--u) * 7.8); font-size: calc(var(--u) * 1.6); }
+  .tab svg { width: calc(var(--u) * 2.8); height: calc(var(--u) * 2.8); }
+  .napbtns { grid-template-columns: 1fr; }
+  .alert .a-ti { font-size: calc(var(--u) * 7.2); } .alert .a-ti.long { font-size: calc(var(--u) * 5.2); }
+  .alert .a-lab, .alert .a-when { font-size: calc(var(--u) * 3.6); } .alert .a-cnt { font-size: calc(var(--u) * 5.4); }
+  .alert .a-ok { min-height: calc(var(--u) * 9.5); font-size: calc(var(--u) * 4.6); }
 }
 </style>
 </head>
 <body>
 <div class="app">
-  <nav class="rail" id="rail"></nav>
-  <header class="top"><div class="date" id="date"></div><div class="clock" id="clock"></div></header>
+  <aside class="cal">
+    <div class="daycard" id="daycard"></div>
+    <div class="clock" id="clock"></div>
+    <div class="greet" id="greet"></div>
+    <button class="napchip" id="napchip" data-view="nap" hidden></button>
+    <div class="tools" id="tools"></div>
+  </aside>
+  <nav class="tabs" id="tabs"></nav>
   <div class="viewwrap"><div class="view" id="view"></div><div class="hint" id="hint" hidden>▼ したにも あります</div></div>
 </div>
 <div class="sheet" id="sheet" hidden><div class="card" id="card"></div></div>
+<div class="alert" id="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <div class="net" id="net" hidden></div>
 
@@ -183,7 +270,7 @@ const parts = (ms) => { const j = new Date(ms + JST); return { y: j.getUTCFullYe
 const dayKey = (ms) => Math.floor((ms + JST) / DAY);
 const pad = (n) => String(n).padStart(2, '0');
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const tm = (ms) => { const p = parts(ms); return { ap: p.h < 12 ? '午前' : '午後', hm: `${p.h <= 12 ? p.h : p.h - 12}:${pad(p.mi)}` }; };
+const tm = (ms) => { const p = parts(ms); return { ap: p.h < 12 ? '午前' : '午後', hm: `${p.h % 12 === 0 && p.h !== 0 ? 12 : p.h % 12 === 0 ? 0 : p.h % 12}:${pad(p.mi)}` }; };
 const tmHtml = (ms) => { const t = tm(ms); return `<span class="ap">${t.ap}</span><span class="hm">${t.hm}</span>`; };
 const until = (ms) => { const m = Math.max(1, Math.ceil(ms / 60e3)); if (m < 60) return `あと${m}分`; const h = Math.floor(m / 60), r = m % 60; return r ? `あと${h}時間${r}分` : `あと${h}時間`; };
 const dayLabel = (k) => { const p = parts(k * DAY - JST); return `${p.mo}月${p.d}日（${WD[p.wd]}）`; };
@@ -215,6 +302,16 @@ function rangeText(e) {
   const a = tm(e.s), b = tm(e.e);
   return `${a.ap} ${a.hm} 〜 ${a.ap === b.ap ? '' : b.ap + ' '}${b.hm}`;
 }
+
+/* ---- アイコン ---- */
+const ICON = {
+  today: '<path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>',
+  tomorrow: '<path d="M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0M12 6v3M4.6 10.6l1.8 1.8M19.4 10.6l-1.8 1.8"/>',
+  week: '<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01"/>',
+  todo: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5.2-6"/>',
+  nap: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+};
+const svg = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
 
 /* ---- 画面の部品 ---- */
 function rowHtml(e, n, cur, next) {
@@ -277,32 +374,192 @@ function viewTodo(today) {
   return html;
 }
 
+/* ---- ひるねタイマー（この端末に覚えておくので、ページを開き直しても続く） ---- */
+let nap = null;
+try { const v = JSON.parse(localStorage.getItem('nap') || 'null'); if (v && v.end > 0 && v.total > 0) nap = v; } catch (e) {}
+const saveNap = () => { try { nap ? localStorage.setItem('nap', JSON.stringify(nap)) : localStorage.removeItem('nap'); } catch (e) {} };
+function startNap(min) {
+  nap = { end: Date.now() + min * 60e3, total: min * 60e3 }; saveNap();
+  unlockAudio(); render(true); updateNap();
+  toast(`ひるね ${min}分。おわったら おしらせします`);
+}
+function stopNap() { nap = null; saveNap(); render(true); }
+function viewNap() {
+  if (!nap) {
+    return `<h2>ひるね タイマー</h2>
+      <div class="napbtns">
+        <button class="napbtn" data-nap="15"><div class="n">15<small>分</small></div><div class="d">ちょっと ひとやすみ</div></button>
+        <button class="napbtn" data-nap="30"><div class="n">30<small>分</small></div><div class="d">ゆっくり ひるね</div></button>
+      </div>
+      <div class="napnote">おすと はじまります。<br>じかんが きたら おとで おしらせします。</div>`;
+  }
+  const e = tm(nap.end);
+  return `<h2>ひるね ちゅう</h2>
+    <div class="napgo">
+      <div class="ring"><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="44"/><circle class="fg" id="napring" cx="50" cy="50" r="44" stroke-dasharray="276.46" stroke-dashoffset="0"/></svg>
+        <div class="mid"><div class="k">のこり</div><div class="v" id="napcnt">--:--</div></div></div>
+      <div class="napside"><div class="at">${e.ap} ${e.hm} に<br>おしらせします</div><button class="napstop" data-napstop>やめる</button></div>
+    </div>`;
+}
+function updateNap() {
+  const chip = $('napchip');
+  if (!nap) { if (!chip.hidden) chip.hidden = true; return; }
+  const left = Math.max(0, nap.end - Date.now());
+  const mm = Math.floor(left / 60e3), ss = Math.floor(left / 1000) % 60;
+  const c = $('napcnt'); if (c) c.textContent = `${pad(mm)}:${pad(ss)}`;
+  const r = $('napring'); if (r) r.style.strokeDashoffset = String(276.46 * (1 - left / nap.total));
+  const chipHtml = `${svg('nap')}<span>ひるね あと${Math.max(1, Math.ceil(left / 60e3))}分</span>`;
+  chip.hidden = view === 'nap';
+  chip.querySelectorAll && chip.innerHTML !== chipHtml && (chip.innerHTML = chipHtml);
+  chip.classList.add('napchip');
+}
+function checkNap() {
+  if (!nap || Date.now() < nap.end) return;
+  const fresh = Date.now() - nap.end < 5 * 60e3;
+  nap = null; saveNap();
+  if (fresh) enqueueAlert({ kind: 'nap', title: 'ひるねは おわりです', say: 'ひるねの じかんが おわりました。おきる じかんです。' });
+  render(true);
+}
+
+/* ---- 音（iPadは、画面を一度さわるまで音を出せないため、さわったときに準備する） ---- */
+let ac = null, audioOn = false, speechPrimed = false;
+function setAudioState() { audioOn = !!ac && ac.state === 'running'; renderTools(); }
+function unlockAudio() {
+  try {
+    if (!ac) { const C = window.AudioContext || window.webkitAudioContext; if (C) ac = new C(); }
+    if (ac && ac.state !== 'running') ac.resume().then(setAudioState).catch(() => {});
+    if (ac) { const b = ac.createBuffer(1, 1, 22050), s = ac.createBufferSource(); s.buffer = b; s.connect(ac.destination); s.start(0); }
+    if ('speechSynthesis' in window && !speechPrimed) { speechPrimed = true; const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); }
+  } catch (e) {}
+  setAudioState();
+}
+['pointerdown', 'touchend', 'click', 'keydown'].forEach((n) => document.addEventListener(n, () => { if (!audioOn) unlockAudio(); }, { capture: true, passive: true }));
+
+// やわらかい「ピンポーン」。高い音は年をとると聞こえにくいので、低め（500〜700Hz）の音を重ねる
+function bell(freq, t0, dur, vol) {
+  [[1, vol, 'sine'], [2, vol * .35, 'sine'], [3, vol * .12, 'sine']].forEach(([m, v, type]) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = freq * m;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(v, t0 + .03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(ac.destination); o.start(t0); o.stop(t0 + dur + .05);
+  });
+}
+function chime(strong) {
+  if (!audioOn) return;
+  try {
+    const t = ac.currentTime + .05, reps = strong ? 3 : 2;
+    for (let i = 0; i < reps; i++) { bell(659.25, t + i * 2.1, 1.1, .6); bell(523.25, t + i * 2.1 + .85, 1.2, .6); }
+  } catch (e) {}
+}
+let jaVoice = null;
+function speak(text) {
+  if (!audioOn || !('speechSynthesis' in window)) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    jaVoice = jaVoice || speechSynthesis.getVoices().find((v) => /^ja/i.test(v.lang));
+    if (jaVoice) u.voice = jaVoice;
+    u.lang = 'ja-JP'; u.rate = .82; u.volume = 1;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+/* ---- おしらせ（予定の15分前と、はじまる時刻） ---- */
+const STAGES = [{ id: 'pre', lead: 15 * 60e3, win: 4 * 60e3 }, { id: 'now', lead: 0, win: 3 * 60e3 }];
+let fired = {};
+try { fired = JSON.parse(localStorage.getItem('fired') || '{}') || {}; } catch (e) {}
+let alertQ = [], curAlert = null, ringTimer = null, autoTimer = null, ringCount = 0;
+
+function checkAlerts() {
+  if (!data) return;
+  const n = now();
+  for (const raw of data.events || []) {
+    const e = norm(raw);
+    if (e.allDay) continue;
+    for (const st of STAGES) {
+      const t0 = e.s - st.lead, key = `${e.id}|${e.s}|${st.id}`;
+      if (n >= t0 && n < t0 + st.win && !fired[key]) {
+        fired[key] = Date.now();
+        for (const k in fired) if (Date.now() - fired[k] > 2 * DAY) delete fired[k];
+        try { localStorage.setItem('fired', JSON.stringify(fired)); } catch (er) {}
+        enqueueAlert({ kind: st.id, title: e.title, s: e.s, e: e.e, loc: e.location, say: st.id === 'pre' ? `もうすぐ、${e.title}です。あと${Math.round((e.s - n) / 60e3)}分です。` : `${e.title}の、じかんです。` });
+      }
+    }
+  }
+}
+function enqueueAlert(a) { if (curAlert) alertQ.push(a); else showAlert(a); }
+function showAlert(a) {
+  curAlert = a; ringCount = 0;
+  const long = a.title.length > 8 ? ' long' : '';
+  let inner;
+  if (a.kind === 'nap') {
+    inner = `<div class="a-lab">ひるねの じかんが</div><div class="a-ti">おわりました</div><div class="a-when">おきる じかんです</div>`;
+  } else {
+    const rt = a.e ? rangeText({ s: a.s, e: a.e, allDay: false }) : '';
+    inner = `<div class="a-lab">${a.kind === 'pre' ? 'もうすぐ 予定です' : 'じかんです'}</div>
+      <div class="a-ti${long}">${esc(a.title)}</div>
+      <div class="a-when">${rt}</div>
+      ${a.kind === 'pre' ? '<div class="a-cnt" id="a-cnt"></div>' : ''}
+      ${a.loc ? `<div class="a-loc">場所：${esc(a.loc)}</div>` : ''}`;
+  }
+  const el = $('alert');
+  el.className = 'alert' + (a.kind === 'now' ? ' now' : '');
+  el.innerHTML = inner + `<button class="a-ok" data-ok>${a.kind === 'nap' ? 'おきました' : 'わかりました'}</button>` + `<div class="a-note" id="a-note"></div>`;
+  el.hidden = false;
+  $('sheet').hidden = true;
+  updateAlertCount();
+  ring();
+  ringTimer = setInterval(() => { if (++ringCount < 6) ring(); }, 45e3);
+  autoTimer = setTimeout(dismissAlert, 10 * 60e3);
+}
+function ring() { chime(curAlert && curAlert.kind !== 'pre'); const a = curAlert; setTimeout(() => { if (curAlert === a) speak(a.say); }, 4600); }
+function updateAlertCount() {
+  if (!curAlert) return;
+  const c = $('a-cnt'); if (c && curAlert.s) c.textContent = now() < curAlert.s ? until(curAlert.s - now()) : 'はじまります';
+  const nt = $('a-note'); if (nt) nt.textContent = audioOn ? '' : 'おとを だすには、画面を一度 さわってください';
+}
+function dismissAlert() {
+  clearInterval(ringTimer); clearTimeout(autoTimer);
+  try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) {}
+  curAlert = null; $('alert').hidden = true; lastTouch = Date.now();
+  if (alertQ.length) showAlert(alertQ.shift());
+}
+
 /* ---- 描画 ---- */
+const greeting = (h) => h >= 5 && h < 10 ? 'おはようございます' : h >= 10 && h < 17 ? 'こんにちは' : h >= 17 && h < 21 ? 'こんばんは' : 'おやすみなさい';
+function renderTools() {
+  const html = `<button class="tool" data-size><span class="k">もじ</span><span class="v">${SIZES[sizeIdx][1]}</span></button>` +
+    `<button class="tool ${audioOn ? '' : 'warn'}" data-sound><span class="k">おと</span><span class="v">${audioOn ? 'オン' : 'おして'}</span></button>`;
+  if (lastHtml.tools !== html) { $('tools').innerHTML = html; lastHtml.tools = html; }
+}
+
 function render(force) {
   const n = now(), p = parts(n), today = dayKey(n);
   document.documentElement.dataset.theme = q.get('theme') || ((p.h >= 21 || p.h < 6) ? 'night' : 'day');
   applySize();
 
-  const dateHtml = `<span class="md">${p.mo}月${p.d}日</span><span class="wd ${p.wd === 0 ? 'sun' : p.wd === 6 ? 'sat' : ''}">${WD[p.wd]}曜日</span>`;
-  if (lastHtml.date !== dateHtml) { $('date').innerHTML = dateHtml; lastHtml.date = dateHtml; }
+  const cls = p.wd === 0 ? 'sun' : p.wd === 6 ? 'sat' : '';
+  const dayHtml = `<div class="bind"></div><div class="mo">${p.mo}月</div><div class="dd">${p.d}<span class="dsuf">日</span></div><div class="wk">${WD[p.wd]}曜日</div>`;
+  if (lastHtml.day !== dayHtml + cls) { $('daycard').className = 'daycard ' + cls; $('daycard').innerHTML = dayHtml; lastHtml.day = dayHtml + cls; }
   const clockHtml = tmHtml(n);
   if (lastHtml.clock !== clockHtml) { $('clock').innerHTML = clockHtml; lastHtml.clock = clockHtml; }
+  const g = greeting(p.h); if (lastHtml.greet !== g) { $('greet').textContent = g; lastHtml.greet = g; }
+  renderTools();
 
   const openTasks = (data?.tasks || []).filter((t) => !t.done).length;
-  const tab = (id, label, badge) => `<button class="tab" data-view="${id}" aria-selected="${view === id}">${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
-  const railHtml = tab('today', 'きょう') + tab('tomorrow', 'あした') + tab('week', '1週間') + tab('todo', 'やること', openTasks || '') +
-    `<button class="size" data-size><span class="l">もじの大きさ<br></span>${SIZES[sizeIdx][1]}</button>`;
-  if (lastHtml.rail !== railHtml) { $('rail').innerHTML = railHtml; lastHtml.rail = railHtml; }
+  const tab = (id, label, badge) => `<button class="tab" data-view="${id}" aria-selected="${view === id}">${svg(id)}<span>${label}</span>${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+  const tabsHtml = tab('today', 'きょう') + tab('tomorrow', 'あした') + tab('week', '1週間') + tab('todo', 'やること', openTasks || '') + tab('nap', 'ひるね');
+  if (lastHtml.tabs !== tabsHtml) { $('tabs').innerHTML = tabsHtml; lastHtml.tabs = tabsHtml; }
 
   const evs = (data?.events || []).map(norm);
-  const html = view === 'tomorrow' ? viewTomorrow(evs, n, today) : view === 'week' ? viewWeek(evs, n, today) : view === 'todo' ? viewTodo(today) : viewToday(evs, n, today);
+  const html = view === 'tomorrow' ? viewTomorrow(evs, n, today) : view === 'week' ? viewWeek(evs, n, today) : view === 'todo' ? viewTodo(today) : view === 'nap' ? viewNap() : viewToday(evs, n, today);
   const key = view + '|' + html;
   if (force || lastHtml.view !== key) {
     const el = $('view'), keep = lastHtml.viewName === view ? el.scrollTop : 0;
     el.innerHTML = html; el.scrollTop = keep;
     lastHtml.view = key; lastHtml.viewName = view;
   }
-  updateHint();
+  updateHint(); updateNap();
 
   const netEl = $('net');
   const old = lastOk && (Date.now() - lastOk > 5 * 60e3);
@@ -317,7 +574,7 @@ function updateHint() {
 }
 
 /* ---- 予定を大きく表示 ---- */
-function openSheet(id, s) {
+function openSheet(id) {
   const e = (data?.events || []).map(norm).find((x) => x.id === id);
   if (!e) return;
   const p = parts(e.s);
@@ -368,9 +625,13 @@ document.addEventListener('click', (ev) => {
   const t = ev.target.closest('button, [data-close]');
   if (ev.target === $('sheet')) return closeSheet();
   if (!t) return;
+  if (t.hasAttribute('data-ok')) return dismissAlert();
   if (t.dataset.view) { view = t.dataset.view; $('view').scrollTop = 0; render(true); return; }
   if (t.hasAttribute('data-size')) { sizeIdx = (sizeIdx + 1) % SIZES.length; try { localStorage.setItem('sizeIdx', String(sizeIdx)); } catch (e) {} render(true); return; }
-  if (t.dataset.eid) return openSheet(t.dataset.eid, t.dataset.s);
+  if (t.hasAttribute('data-sound')) { unlockAudio(); setTimeout(() => chime(false), 150); return; }
+  if (t.dataset.nap) return startNap(Number(t.dataset.nap));
+  if (t.hasAttribute('data-napstop')) return stopNap();
+  if (t.dataset.eid) return openSheet(t.dataset.eid);
   if (t.dataset.tid) return toggleTask(t.dataset.tid);
   if (t.hasAttribute('data-close')) return closeSheet();
   if (t.hasAttribute('data-undo')) { const u = $('toast')._undo; $('toast').hidden = true; if (u) u(); }
@@ -380,11 +641,11 @@ $('view').addEventListener('scroll', updateHint, { passive: true });
 // 拡大・ダブルタップでの拡大を止める
 ['gesturestart', 'gesturechange', 'dblclick'].forEach((n) => document.addEventListener(n, (e) => e.preventDefault()));
 document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-// しばらく触らなければ「きょう」に戻す（シートは1分、他の画面は2分）
+// しばらく触らなければ「きょう」に戻す（シートは1分、ひるね中の画面は5分、他は2分）
 setInterval(() => {
   const idle = Date.now() - lastTouch;
   if (!$('sheet').hidden && idle > 60e3) closeSheet();
-  if (view !== 'today' && idle > 120e3) { view = 'today'; $('view').scrollTop = 0; render(true); }
+  if (view !== 'today' && idle > (view === 'nap' && nap ? 300e3 : 120e3)) { view = 'today'; $('view').scrollTop = 0; render(true); }
 }, 5e3);
 
 async function load() {
@@ -393,15 +654,16 @@ async function load() {
     if (!r.ok) throw new Error(r.status);
     data = await r.json(); lastOk = Date.now(); failed = false;
   } catch (e) { failed = true; }
-  render();
+  render(); checkAlerts();
 }
 load();
 setInterval(load, 60e3);
 setInterval(() => render(), 5e3);
+setInterval(() => { checkAlerts(); checkNap(); updateNap(); updateAlertCount(); }, 1000);
 window.addEventListener('resize', updateHint);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
 // 毎日 午前3時30分に読み込み直す（更新したページを取り込むため）
-setInterval(() => { const p = parts(now()); if (p.h === 3 && p.mi === 30) location.reload(); }, 60e3);
+setInterval(() => { const p = parts(now()); if (p.h === 3 && p.mi === 30 && !curAlert && !nap) location.reload(); }, 60e3);
 (async function keepAwake() {
   try { if ('wakeLock' in navigator) { await navigator.wakeLock.request('screen'); } } catch (e) {}
   document.addEventListener('visibilitychange', () => { if (!document.hidden) keepAwake(); }, { once: true });
