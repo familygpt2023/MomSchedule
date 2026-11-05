@@ -186,6 +186,8 @@ h2 { margin: .3rem 0 .4rem; font-size: 1.9rem; font-weight: 700; color: var(--su
 .toast button { flex: none; white-space: nowrap; background: var(--accent); color: var(--accent-ink); border-radius: 1.2rem; padding: 1.2rem 2.4rem; font-size: 2.6rem; font-weight: 800; }
 .hint { position: absolute; left: 50%; bottom: .4rem; transform: translateX(-50%); padding: .6rem 1.8rem; border-radius: 99rem; background: var(--ink); color: var(--paper); font-size: calc(var(--u) * 1.8); font-weight: 700; pointer-events: none; opacity: .92; white-space: nowrap; }
 .hint[hidden] { display: none; }
+.hintup { position: absolute; left: 50%; bottom: .6rem; transform: translateX(-50%); z-index: 3; padding: .7rem 2rem; border-radius: 99rem; background: var(--panel); color: var(--ink); border: calc(var(--u) * .16) solid var(--ink); font-size: calc(var(--u) * 1.9); font-weight: 800; white-space: nowrap; }
+.hintup[hidden] { display: none; }
 .net { position: fixed; left: 50%; top: 1rem; transform: translateX(-50%); background: #8A4B00; color: #fff; font-size: calc(var(--u) * 1.8); font-weight: 700; padding: .7rem 1.6rem; border-radius: 99rem; z-index: 4; white-space: nowrap; }
 .net[hidden] { display: none; }
 
@@ -247,7 +249,7 @@ h2 { margin: .3rem 0 .4rem; font-size: 1.9rem; font-weight: 700; color: var(--su
     <div class="tools" id="tools"></div>
   </aside>
   <nav class="tabs" id="tabs"></nav>
-  <div class="viewwrap"><div class="view" id="view"></div><div class="hint" id="hint" hidden>▼ したにも あります</div></div>
+  <div class="viewwrap"><div class="view" id="view"></div><div class="hint" id="hint" hidden>▼ したにも あります</div><button class="hintup" id="hintup" hidden data-top>▲ もっと前の予定</button></div>
 </div>
 <div class="sheet" id="sheet" hidden><div class="card" id="card"></div></div>
 <div class="alert" id="alert" hidden></div>
@@ -586,7 +588,9 @@ function autoScroll() {
   const gap = parseFloat(getComputedStyle(document.documentElement).fontSize) * 2.4;
   // いまの予定（なければ次の予定）を、主役カードのすぐ下に置くための位置
   let target = 0;
-  if (a) target = Math.max(0, a.getBoundingClientRect().top - base + el.scrollTop - (hero ? hero.offsetHeight + gap : 0));
+  const prev = a && a.previousElementSibling && a.previousElementSibling.classList.contains('past') && !a.previousElementSibling.classList.contains('allrow') ? a.previousElementSibling : null;
+  const ref = prev || a;   // 直前に終わった予定があれば、それを一番上に（わすれていても気づけるように）
+  if (ref) target = Math.max(0, ref.getBoundingClientRect().top - base + el.scrollTop - (hero ? hero.offsetHeight + gap : 0));
   // 下の余白を、ちょうどその位置まで動ける高さにする
   if (tail) {
     const pb = parseFloat(getComputedStyle(el).paddingBottom) || 0;
@@ -603,6 +607,11 @@ function autoScroll() {
 
 function updateHint() {
   const el = $('view');
+  // きょうの画面で、終わった予定が上に隠れているとき、見に行くボタンを出す
+  const up = $('hintup'), hero = el.querySelector('.hero');
+  const heroB = hero ? hero.getBoundingClientRect().bottom : 0;
+  const hidden = view === 'today' && !!hero && el.scrollTop > 8 && [...el.querySelectorAll('.row.past')].some((x) => x.getBoundingClientRect().bottom < heroB + parseFloat(getComputedStyle(document.documentElement).fontSize) * 2.6);
+  up.hidden = !hidden;
   $('hint').hidden = !(el.scrollHeight > el.clientHeight + 8 && el.scrollTop + el.clientHeight < el.scrollHeight - 24);
 }
 
@@ -659,6 +668,7 @@ document.addEventListener('click', (ev) => {
   if (ev.target === $('sheet')) return closeSheet();
   if (!t) return;
   if (t.hasAttribute('data-ok')) return dismissAlert();
+  if (t.hasAttribute('data-top')) { lastTouch = Date.now(); $('view').scrollTo({ top: 0, behavior: 'smooth' }); return; }
   if (t.dataset.view) { view = t.dataset.view; $('view').scrollTop = 0; lastAnchor = ''; render(true); return; }
   if (t.hasAttribute('data-size')) { sizeIdx = (sizeIdx + 1) % SIZES.length; try { localStorage.setItem('sizeIdx', String(sizeIdx)); } catch (e) {} render(true); return; }
   if (t.hasAttribute('data-sound')) { unlockAudio(); setTimeout(() => chime(false), 150); return; }
@@ -678,6 +688,7 @@ document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.prev
 setInterval(() => {
   const idle = Date.now() - lastTouch;
   if (!$('sheet').hidden && idle > 60e3) closeSheet();
+  if (view === 'today' && idle > 30e3 && $('sheet').hidden) lastAnchor = '';
   if (view !== 'today' && idle > (view === 'nap' && nap ? 300e3 : 120e3)) { view = 'today'; $('view').scrollTop = 0; lastAnchor = ''; render(true); }
 }, 5e3);
 
