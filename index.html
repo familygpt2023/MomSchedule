@@ -98,6 +98,7 @@ svg { display: block; }
   background: var(--accent); color: var(--accent-ink); border-radius: 1.2rem; padding: calc(var(--u) * 1.3) calc(var(--u) * 1.9) calc(var(--u) * 1.4); margin-bottom: 1.3rem;
   position: sticky; top: 0; z-index: 2; box-shadow: 0 1.3rem 0 0 var(--paper), 0 2.4rem 0 -.2rem var(--paper);   /* 一覧が動いても主役は上に残す */
 }
+.tail { height: 60dvh; pointer-events: none; }   /* 予定が少ない日も、いまの予定を上まで寄せられるようにする余白（高さは autoScroll が調整） */
 .hero .allday { font-size: calc(var(--u) * 1.9 * var(--hz)); font-weight: 700; opacity: .94; }
 .hero.quiet { background: var(--paper); color: var(--ink); border: .18rem dashed var(--mute); }
 .hero { --hz: min(var(--z), 1.2); }
@@ -343,7 +344,7 @@ function viewToday(evs, n, today) {
     const tmr = onDay(evs, today + 1).find((e) => !e.allDay);
     hero = `<section class="hero quiet"><div class="ti">${timed.length ? 'きょうの予定は おわりました' : 'きょうは 予定がありません'}</div>${tmr ? foot(`あしたは ${tm(tmr.s).ap} ${tm(tmr.s).hm} から ${esc(tmr.title)}`, '') : ''}</section>`;
   }
-  return hero + `<h2>きょうの予定</h2>` + (todays.length ? todays.map((e) => rowHtml(e, n, cur, next)).join('') : '<div class="empty">予定はありません</div>');
+  return hero + `<h2>きょうの予定</h2>` + (todays.length ? todays.map((e) => rowHtml(e, n, cur, next)).join('') : '<div class="empty">予定はありません</div>') + '<div class="tail"></div>';
 }
 
 function viewTomorrow(evs, n, today) {
@@ -579,17 +580,25 @@ let lastAnchor = '';
 function autoScroll() {
   const el = $('view');
   const a = el.querySelector('.row:not(.past):not(.allrow)');
+  const tail = el.querySelector('.tail');
+  const base = el.getBoundingClientRect().top;
+  const hero = el.querySelector('.hero');
+  const gap = parseFloat(getComputedStyle(document.documentElement).fontSize) * 2.4;
+  // いまの予定（なければ次の予定）を、主役カードのすぐ下に置くための位置
+  let target = 0;
+  if (a) target = Math.max(0, a.getBoundingClientRect().top - base + el.scrollTop - (hero ? hero.offsetHeight + gap : 0));
+  // 下の余白を、ちょうどその位置まで動ける高さにする
+  if (tail) {
+    const pb = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+    const tailTop = tail.getBoundingClientRect().top - base + el.scrollTop;
+    tail.style.height = (a ? Math.max(0, target + el.clientHeight - pb - tailTop) : 0) + 'px';
+  }
   const id = a ? a.dataset.eid + '|' + a.dataset.s : 'end';
   if (id === lastAnchor) return;
   if (lastAnchor !== '' && Date.now() - lastTouch < 15e3) return;   // 指で動かしている最中は待つ
   const first = lastAnchor === '';
   lastAnchor = id;
-  let top = 0;
-  if (a) {
-    const hero = el.querySelector('.hero'), gap = parseFloat(getComputedStyle(document.documentElement).fontSize) * 1.5;
-    top = a.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - (hero ? hero.offsetHeight + gap : 0);
-  } else top = el.scrollHeight;
-  el.scrollTo({ top: Math.max(0, top), behavior: first ? 'auto' : 'smooth' });
+  el.scrollTo({ top: a ? target : el.scrollHeight, behavior: first ? 'auto' : 'smooth' });
 }
 
 function updateHint() {
