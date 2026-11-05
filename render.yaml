@@ -1,0 +1,21 @@
+# Render の「Blueprint」用の設定（手動で作る場合は使わなくてよい）
+services:
+  - type: web
+    name: mom-display
+    runtime: node
+    plan: free
+    buildCommand: echo "build not needed"
+    startCommand: node server.mjs
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: TZ
+        value: Asia/Tokyo
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REFRESH_TOKEN
+        sync: false
+      - key: ACCESS_KEY
+        sync: false

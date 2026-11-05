@@ -1,0 +1,9 @@
+{
+  "name": "mom-display",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "iPad常時表示用の予定表（読み取り専用）",
+  "scripts": { "start": "node server.mjs" },
+  "engines": { "node": ">=20" }
+}
